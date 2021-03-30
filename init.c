@@ -4,8 +4,10 @@
 #include "stat.h"
 #include "user.h"
 #include "fcntl.h"
+#include "fs.h"
 
-char *argv[] = { "sh", 0 };
+char *argv[] = { "/bin/sh", 0 };
+char *envp[] = { "PATH=/bin/", 0 };
 
 int
 main(void)
@@ -13,7 +15,9 @@ main(void)
   int pid, wpid;
 
   if(open("console", O_RDWR) < 0){
-    mknod("console", 1, 1);
+    if (mknod("console", 0, 1, 1) < 0) {
+      exit();
+    }
     open("console", O_RDWR);
   }
   dup(0);  // stdout
@@ -27,7 +31,7 @@ main(void)
       exit();
     }
     if(pid == 0){
-      exec("sh", argv);
+      execve(argv[0], argv, envp);
       printf(1, "init: exec sh failed\n");
       exit();
     }

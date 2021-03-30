@@ -2,6 +2,7 @@
 #include "stat.h"
 #include "user.h"
 #include "fs.h"
+#include "pwd.h"
 
 char*
 fmtname(char *path)
@@ -29,6 +30,7 @@ ls(char *path)
   int fd;
   struct dirent de;
   struct stat st;
+  struct passwd *pw;
 
   if((fd = open(path, 0)) < 0){
     printf(2, "ls: cannot open %s\n", path);
@@ -41,9 +43,20 @@ ls(char *path)
     return;
   }
 
+  char perms[4];
+
   switch(st.type){
   case T_FILE:
-    printf(1, "%s %d %d %d\n", fmtname(path), st.type, st.ino, st.size);
+    perms[0] = (st.perms & S_IROTH) ? 'r' : '-';
+    perms[1] = (st.perms & S_IWOTH) ? 'w' : '-';
+    perms[2] = (st.perms & S_IXOTH) ? 'x' : '-';
+    perms[3] = '\0';
+    pw = getpwuid(st.uid);
+    if (pw) {
+      printf(1, "%s %s %s %d %d %d\n", fmtname(path), pw->pw_name, perms, st.type, st.ino, st.size);
+    } else {
+      printf(1, "%s %d %s %d %d %d\n", fmtname(path), st.uid, perms, st.type, st.ino, st.size);
+    }
     break;
 
   case T_DIR:
@@ -63,7 +76,16 @@ ls(char *path)
         printf(1, "ls: cannot stat %s\n", buf);
         continue;
       }
-      printf(1, "%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
+      perms[0] = (st.perms & S_IROTH) ? 'r' : '-';
+      perms[1] = (st.perms & S_IWOTH) ? 'w' : '-';
+      perms[2] = (st.perms & S_IXOTH) ? 'x' : '-';
+      perms[3] = '\0';
+      pw = getpwuid(st.uid);
+      if (pw) {
+        printf(1, "%s %s %s %d %d %d\n", fmtname(buf), pw->pw_name, perms, st.type, st.ino, st.size);
+      } else {
+        printf(1, "%s %d %s %d %d %d\n", fmtname(buf), st.uid, perms, st.type, st.ino, st.size);
+      }
     }
     break;
   }

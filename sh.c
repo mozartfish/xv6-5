@@ -3,6 +3,8 @@
 #include "types.h"
 #include "user.h"
 #include "fcntl.h"
+#include "fs.h"
+#include "pwd.h"
 
 // Parsed command representation
 #define EXEC  1
@@ -17,6 +19,8 @@ struct cmd {
   int type;
 };
 
+static char username[32];
+
 struct execcmd {
   int type;
   char *argv[MAXARGS];
@@ -29,6 +33,7 @@ struct redircmd {
   char *file;
   char *efile;
   int mode;
+  int perms;
   int fd;
 };
 
@@ -63,6 +68,7 @@ runcmd(struct cmd *cmd)
   struct listcmd *lcmd;
   struct pipecmd *pcmd;
   struct redircmd *rcmd;
+  char *path;
 
   if(cmd == 0)
     exit();
@@ -75,14 +81,31 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit();
-    exec(ecmd->argv[0], ecmd->argv);
+    execv(ecmd->argv[0], ecmd->argv);
+    if ((path=getenv("PATH"))) {
+      // does this leak memory? Yes. Do we care? No, the function does not
+      // return.
+      for (
+          path=strtok(strcpy(malloc(strlen(path)+1), path), ":");
+          path;
+          path=strtok(0, ":")) {
+        int len = strlen(path);
+        char *ex=ecmd->argv[0];
+        path = strcpy(malloc(len+strlen(ex)+2), path);
+        strcpy(path+len, ex);
+        ecmd->argv[0]=path;
+        execv(ecmd->argv[0], ecmd->argv);
+        ecmd->argv[0]=ex;
+        free(path);
+      }
+    }
     printf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
 
   case REDIR:
     rcmd = (struct redircmd*)cmd;
     close(rcmd->fd);
-    if(open(rcmd->file, rcmd->mode) < 0){
+    if(open(rcmd->file, rcmd->mode, rcmd->perms) < 0){
       printf(2, "open %s failed\n", rcmd->file);
       exit();
     }
@@ -133,7 +156,7 @@ runcmd(struct cmd *cmd)
 int
 getcmd(char *buf, int nbuf)
 {
-  printf(2, "$ ");
+  printf(2, "[%s] $ ", username);
   memset(buf, 0, nbuf);
   gets(buf, nbuf);
   if(buf[0] == 0) // EOF
@@ -145,15 +168,22 @@ int
 main(void)
 {
   static char buf[100];
-  int fd;
-
-  // Ensure that three file descriptors are open.
-  while((fd = open("console", O_RDWR)) >= 0){
-    if(fd >= 3){
-      close(fd);
-      break;
-    }
+  //int fd;
+  //// Ensure that three file descriptors are open.
+  //while((fd = open("console", O_RDWR)) >= 0){
+  //  if(fd >= 3){
+  //    close(fd);
+  //    break;
+  //  }
+  //}
+  uid_t uid = getuid();
+  struct passwd *pw = getpwuid(uid);
+  if (!pw) {
+    printf(2, "cannot get username for uid %d\n", uid);
+    exit();
   }
+  strcpy(username, pw->pw_name);
+
 
   // Read and run input commands.
   while(getcmd(buf, sizeof(buf)) >= 0){
@@ -204,7 +234,7 @@ execcmd(void)
 }
 
 struct cmd*
-redircmd(struct cmd *subcmd, char *file, char *efile, int mode, int fd)
+redircmd(struct cmd *subcmd, char *file, char *efile, int mode, int perms,  int fd)
 {
   struct redircmd *cmd;
 
@@ -215,6 +245,7 @@ redircmd(struct cmd *subcmd, char *file, char *efile, int mode, int fd)
   cmd->file = file;
   cmd->efile = efile;
   cmd->mode = mode;
+  cmd->perms = perms;
   cmd->fd = fd;
   return (struct cmd*)cmd;
 }
@@ -383,13 +414,13 @@ parseredirs(struct cmd *cmd, char **ps, char *es)
       panic("missing file for redirection");
     switch(tok){
     case '<':
-      cmd = redircmd(cmd, q, eq, O_RDONLY, 0);
+      cmd = redircmd(cmd, q, eq, O_RDONLY, 0, 0);
       break;
     case '>':
-      cmd = redircmd(cmd, q, eq, O_WRONLY|O_CREATE, 1);
+      cmd = redircmd(cmd, q, eq, O_WRONLY|O_CREATE, S_IROTH | S_IWOTH, 1);
       break;
     case '+':  // >>
-      cmd = redircmd(cmd, q, eq, O_WRONLY|O_CREATE, 1);
+      cmd = redircmd(cmd, q, eq, O_WRONLY|O_CREATE, S_IROTH | S_IWOTH, 1);
       break;
     }
   }

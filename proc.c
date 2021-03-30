@@ -112,6 +112,8 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // *** STAGE1b ADD YOUR CODE HERE ***
+
   return p;
 }
 
@@ -124,7 +126,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -140,7 +142,7 @@ userinit(void)
   p->tf->eip = 0;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
-  p->cwd = namei("/");
+  p->cwd = namei("/", p); // we should already have permissions to traverse here
 
   // this assignment to p->state lets other cores
   // run this process. the acquire forces the above
@@ -190,12 +192,15 @@ fork(void)
   }
 
   // Copy process state from proc.
-  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
+  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0) {
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
+
+  // *** STAGE1c ADD YOUR CODE HERE ***
+
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;

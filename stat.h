@@ -3,6 +3,8 @@
 #define T_DEV  3   // Device
 
 struct stat {
+  ushort uid;
+  ushort perms;
   short type;  // Type of file
   int dev;     // File system's disk device
   uint ino;    // Inode number

@@ -113,6 +113,28 @@ sys_fstat(void)
     return -1;
   return filestat(f, st);
 }
+int
+sys_stat(void)
+{
+  char *path;
+  struct stat *st;
+  struct proc *p = myproc();
+  struct inode *ip;
+
+  if(argstr(0, &path) < 0 || argptr(1, (void*)&st, sizeof(*st)) < 0)
+    return -1;
+
+  begin_op();
+  if((ip = namei(path, p)) == 0){
+    end_op();
+    return -1;
+  }
+  ilock(ip);
+  stati(ip, st);
+  iunlock(ip);
+  end_op();
+  return 0;
+}
 
 // Create the path new as a link to the same inode as old.
 int
@@ -120,12 +142,13 @@ sys_link(void)
 {
   char name[DIRSIZ], *new, *old;
   struct inode *dp, *ip;
+  struct proc *p = myproc();
 
   if(argstr(0, &old) < 0 || argstr(1, &new) < 0)
     return -1;
 
   begin_op();
-  if((ip = namei(old)) == 0){
+  if((ip = namei(old, p)) == 0){
     end_op();
     return -1;
   }
@@ -141,9 +164,10 @@ sys_link(void)
   iupdate(ip);
   iunlock(ip);
 
-  if((dp = nameiparent(new, name)) == 0)
+  if((dp = nameiparent(new, name, p)) == 0)
     goto bad;
   ilock(dp);
+  // XXX perms
   if(dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0){
     iunlockput(dp);
     goto bad;
@@ -187,18 +211,24 @@ sys_unlink(void)
   struct inode *ip, *dp;
   struct dirent de;
   char name[DIRSIZ], *path;
+  struct proc *p = myproc();
   uint off;
 
   if(argstr(0, &path) < 0)
     return -1;
 
   begin_op();
-  if((dp = nameiparent(path, name)) == 0){
+  if((dp = nameiparent(path, name, p)) == 0){
     end_op();
     return -1;
   }
 
   ilock(dp);
+  if (!imodeok(dp, p, S_IWOTH)) {
+    iunlock(dp);
+    return -1;
+  }
+
 
   // Cannot unlink "." or "..".
   if(namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
@@ -239,22 +269,27 @@ bad:
 }
 
 static struct inode*
-create(char *path, short type, short major, short minor)
+create(char *path, short type, short major, short minor, ushort mode, struct proc *reqr)
 {
   uint off;
   struct inode *ip, *dp;
   char name[DIRSIZ];
 
-  if((dp = nameiparent(path, name)) == 0)
+  if((dp = nameiparent(path, name, reqr)) == 0)
     return 0;
   ilock(dp);
 
   if((ip = dirlookup(dp, name, &off)) != 0){
     iunlockput(dp);
     ilock(ip);
-    if(type == T_FILE && ip->type == T_FILE)
+    if(type == T_FILE && ip->type == T_FILE && imodeok(ip, reqr, mode))
       return ip;
     iunlockput(ip);
+    return 0;
+  }
+
+  if (!imodeok(dp, reqr, S_IWOTH)) {
+    iunlockput(dp);
     return 0;
   }
 
@@ -265,6 +300,8 @@ create(char *path, short type, short major, short minor)
   ip->major = major;
   ip->minor = minor;
   ip->nlink = 1;
+  ichown(ip, -1, reqr);
+  ichmod(ip, mode, reqr);
   iupdate(ip);
 
   if(type == T_DIR){  // Create . and .. entries.
@@ -287,28 +324,49 @@ int
 sys_open(void)
 {
   char *path;
-  int fd, omode;
+  int fd, oflags, omode;
   struct file *f;
   struct inode *ip;
+  struct proc *p = myproc();
 
-  if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
+  if(argstr(0, &path) < 0 || argint(1, &oflags) < 0)
     return -1;
 
   begin_op();
 
-  if(omode & O_CREATE){
-    ip = create(path, T_FILE, 0, 0);
+  if(oflags & O_CREATE){
+    // we need file permissions to create it
+    if (argint(2, &omode) < 0 || !PERMSOK(omode)) {
+      end_op();
+      return -1;
+    }
+
+    ip = create(path, T_FILE, 0, 0, omode, p);
     if(ip == 0){
       end_op();
       return -1;
     }
   } else {
-    if((ip = namei(path)) == 0){
+    if((ip = namei(path, p)) == 0){
       end_op();
       return -1;
     }
     ilock(ip);
-    if(ip->type == T_DIR && omode != O_RDONLY){
+
+    omode = 0;
+    if (oflags & O_WRONLY) {
+      omode = S_IWOTH;
+    } else if (oflags & O_RDWR) {
+      omode = S_IWOTH | S_IROTH;
+    } else /* O_RDONLY */ {
+      omode = S_IROTH;
+    }
+    if (!imodeok(ip, p, omode)) {
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
+    if(ip->type == T_DIR && oflags != O_RDONLY) {
       iunlockput(ip);
       end_op();
       return -1;
@@ -322,14 +380,15 @@ sys_open(void)
     end_op();
     return -1;
   }
+  //iunlockput(ip);
   iunlock(ip);
   end_op();
 
   f->type = FD_INODE;
   f->ip = ip;
   f->off = 0;
-  f->readable = !(omode & O_WRONLY);
-  f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+  f->readable = !(oflags & O_WRONLY);
+  f->writable = (oflags & O_WRONLY) || (oflags & O_RDWR);
   return fd;
 }
 
@@ -338,9 +397,12 @@ sys_mkdir(void)
 {
   char *path;
   struct inode *ip;
+  struct proc *curproc = myproc();
+  int mode;
 
   begin_op();
-  if(argstr(0, &path) < 0 || (ip = create(path, T_DIR, 0, 0)) == 0){
+  if(argstr(0, &path) < 0 || argint(1, &mode) < 0 || !PERMSOK(mode)
+      || (ip = create(path, T_DIR, 0, 0, mode, curproc)) == 0) {
     end_op();
     return -1;
   }
@@ -355,12 +417,15 @@ sys_mknod(void)
   struct inode *ip;
   char *path;
   int major, minor;
+  struct proc *p = myproc();
+  int perms;
 
   begin_op();
   if((argstr(0, &path)) < 0 ||
-     argint(1, &major) < 0 ||
-     argint(2, &minor) < 0 ||
-     (ip = create(path, T_DEV, major, minor)) == 0){
+     argint(1, &perms) < 0 || !PERMSOK(perms) ||
+     argint(2, &major) < 0 ||
+     argint(3, &minor) < 0 ||
+     (ip = create(path, T_DEV, major, minor, perms, p)) == 0){
     end_op();
     return -1;
   }
@@ -375,14 +440,14 @@ sys_chdir(void)
   char *path;
   struct inode *ip;
   struct proc *curproc = myproc();
-  
+
   begin_op();
-  if(argstr(0, &path) < 0 || (ip = namei(path)) == 0){
+  if(argstr(0, &path) < 0 || (ip = namei(path, curproc)) == 0){
     end_op();
     return -1;
   }
   ilock(ip);
-  if(ip->type != T_DIR){
+  if(ip->type != T_DIR || !imodeok(ip, curproc, S_IXOTH) ){
     iunlockput(ip);
     end_op();
     return -1;
@@ -395,13 +460,14 @@ sys_chdir(void)
 }
 
 int
-sys_exec(void)
+sys_execve(void)
 {
-  char *path, *argv[MAXARG];
+  char *path, *argv[MAXARG],*envp[MAXARG];
   int i;
-  uint uargv, uarg;
+  uint uargv, uarg, uenvp;
 
-  if(argstr(0, &path) < 0 || argint(1, (int*)&uargv) < 0){
+  if(argstr(0, &path) < 0 || argint(1, (int*)&uargv) < 0
+      || argint(2,(int*)&uenvp) < 0){
     return -1;
   }
   memset(argv, 0, sizeof(argv));
@@ -417,7 +483,20 @@ sys_exec(void)
     if(fetchstr(uarg, &argv[i]) < 0)
       return -1;
   }
-  return exec(path, argv);
+  memset(envp, 0, sizeof(envp));
+  for(i=0;; i++){
+    if(i >= NELEM(argv))
+      return -1;
+    if(fetchint(uenvp+4*i, (int*)&uarg) < 0)
+      return -1;
+    if(uarg == 0){
+      envp[i] = 0;
+      break;
+    }
+    if(fetchstr(uarg, &envp[i]) < 0)
+      return -1;
+  }
+  return exec(path, argv, envp);
 }
 
 int
@@ -442,4 +521,68 @@ sys_pipe(void)
   fd[0] = fd0;
   fd[1] = fd1;
   return 0;
+}
+
+int sys_chown(void)
+{
+  struct inode *ip;
+  char *path;
+  int uid, rval;
+  struct proc *p = myproc();
+
+  if(argstr(0, &path) < 0)
+    return -1;
+
+  if(argint(1, &uid) < 0)
+    return -1;
+
+  if (uid < 0 || uid > (1 << 15))
+    return -1;
+
+  begin_op();
+  if((ip = namei(path, p)) == 0){
+    end_op();
+    return -1;
+  }
+
+  ilock(ip);
+  rval = ichown(ip, uid, p);
+  iupdate(ip);
+  iunlockput(ip);
+
+  end_op();
+
+  return rval;
+}
+
+int sys_chmod(void)
+{
+  struct inode *ip;
+  char *path;
+  int perms, rval;
+  struct proc *p = myproc();
+
+  if(argstr(0, &path) < 0)
+    return -1;
+
+  if(argint(1, &perms) < 0)
+    return -1;
+
+  if (!PERMSOK(perms))
+    return -1;
+
+  begin_op();
+  if((ip = namei(path, p)) == 0){
+    end_op();
+    return -1;
+  }
+
+  ilock(ip);
+  rval = ichmod(ip, perms, p);
+  iupdate(ip);
+  iunlockput(ip);
+
+  end_op();
+
+  return rval;
 }

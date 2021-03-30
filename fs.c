@@ -231,6 +231,7 @@ iupdate(struct inode *ip)
   dip->minor = ip->minor;
   dip->nlink = ip->nlink;
   dip->size = ip->size;
+  // *** STAGE2f ADD YOUR CODE HERE ***
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
   brelse(bp);
@@ -299,6 +300,7 @@ ilock(struct inode *ip)
   if(ip->valid == 0){
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
     dip = (struct dinode*)bp->data + ip->inum%IPB;
+    // *** STAGE2d ADD YOUR CODE HERE ***
     ip->type = dip->type;
     ip->major = dip->major;
     ip->minor = dip->minor;
@@ -358,6 +360,34 @@ iunlockput(struct inode *ip)
 {
   iunlock(ip);
   iput(ip);
+}
+
+// Caller must hold ip->lock.
+// Return 1 if uid can exec ip else return 0
+bool
+imodeok(struct inode* ip, struct proc *p, ushort mode)
+{
+  // *** STAGE3a REPLACE THE CONTENTS OF THIS FUNCTION
+  return true;
+}
+
+// caller must hold ip->lock
+// change the owner of `ip` to `uid`.
+// if `uid` is -1, use the owner to the uid of `p` unconditionally, otherwise
+// perform permission checks.
+// return -1 on failure
+int
+ichown(struct inode *ip,  int uid, struct proc *p)
+{
+  // *** STAGE3b REPLACE THE CONTENTS OF THIS FUNCTION
+  return 0;
+}
+
+int
+ichmod(struct inode *ip,  ushort mode, struct proc *p)
+{
+  // *** STAGE3c REPLACE THE CONTENTS OF THIS FUNCTION
+  return 0;
 }
 
 //PAGEBREAK!
@@ -440,6 +470,10 @@ itrunc(struct inode *ip)
 void
 stati(struct inode *ip, struct stat *st)
 {
+  // *** STAGE2e REPLACE/UPDATE THE TWO LINES BELOW ***
+  st->uid = 0;
+  st->perms = S_IRWX;
+
   st->dev = ip->dev;
   st->ino = ip->inum;
   st->type = ip->type;
@@ -622,8 +656,9 @@ skipelem(char *path, char *name)
 // If parent != 0, return the inode for the parent and copy the final
 // path element into name, which must have room for DIRSIZ bytes.
 // Must be called inside a transaction since it calls iput().
+// If `p`, check that `p` has traversal (execute) permissions for each directory
 static struct inode*
-namex(char *path, int nameiparent, char *name)
+namex(char *path, int nameiparent, char *name, struct proc *p)
 {
   struct inode *ip, *next;
 
@@ -647,6 +682,11 @@ namex(char *path, int nameiparent, char *name)
       iunlockput(ip);
       return 0;
     }
+    if (!imodeok(ip, p, S_IXOTH)) {
+      // no traversal permissinos on this directory
+      iunlockput(ip);
+      return 0;
+    }
     iunlockput(ip);
     ip = next;
   }
@@ -658,14 +698,15 @@ namex(char *path, int nameiparent, char *name)
 }
 
 struct inode*
-namei(char *path)
+namei(char *path, struct proc *p)
 {
   char name[DIRSIZ];
-  return namex(path, 0, name);
+  return namex(path, 0, name, p);
 }
 
 struct inode*
-nameiparent(char *path, char *name)
+nameiparent(char *path, char *name, struct proc *p)
 {
-  return namex(path, 1, name);
+  return namex(path, 1, name, p);
 }
+

@@ -89,3 +89,27 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int
+sys_getuid(void)
+{
+  // *** STAGE1d ADD YOUR CODE HERE *** (NOTE: YOU CAN REPLACE THE FOLLOWING LINE)
+  return 0;
+}
+
+int
+sys_setuid(void)
+{
+
+  int uid;
+
+  if(argint(0, &uid) < 0)
+    return -1;
+
+  if (uid != 0)
+    return -1;
+
+  // *** STAGE1e ADD YOUR CODE HERE ***
+
+  return 0;
+}

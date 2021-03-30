@@ -85,7 +85,7 @@ argstr(int n, char **pp)
 extern int sys_chdir(void);
 extern int sys_close(void);
 extern int sys_dup(void);
-extern int sys_exec(void);
+extern int sys_execve(void);
 extern int sys_exit(void);
 extern int sys_fork(void);
 extern int sys_fstat(void);
@@ -103,6 +103,11 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_chown(void);
+extern int sys_chmod(void);
+extern int sys_getuid(void);
+extern int sys_setuid(void);
+extern int sys_stat(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -111,7 +116,7 @@ static int (*syscalls[])(void) = {
 [SYS_pipe]    sys_pipe,
 [SYS_read]    sys_read,
 [SYS_kill]    sys_kill,
-[SYS_exec]    sys_exec,
+[SYS_execve]  sys_execve,
 [SYS_fstat]   sys_fstat,
 [SYS_chdir]   sys_chdir,
 [SYS_dup]     sys_dup,
@@ -126,6 +131,11 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_chown]   sys_chown,
+[SYS_chmod]   sys_chmod,
+[SYS_getuid]  sys_getuid,
+[SYS_setuid]  sys_setuid,
+[SYS_stat]    sys_stat,
 };
 
 void

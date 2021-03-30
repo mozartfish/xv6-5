@@ -21,12 +21,23 @@ struct superblock {
   uint bmapstart;    // Block number of first free map block
 };
 
-#define NDIRECT 12
+#define NDIRECT 11
 #define NINDIRECT (BSIZE / sizeof(uint))
 #define MAXFILE (NDIRECT + NINDIRECT)
 
+#ifndef S_IXOTH
+#define S_IXOTH 00001
+#define S_IWOTH 00002
+#define S_IROTH 00004
+#define S_ISUID 00010
+#define S_IRWX  (S_IXOTH | S_IWOTH | S_IROTH)
+#define PERMSOK(perms) ((perms & ~(S_ISUID | S_IROTH | S_IWOTH | S_IXOTH)) == 0)
+#endif
+
 // On-disk inode structure
 struct dinode {
+  // *** STAGE2a REMOVE "padding" FIELD BELOW AND ADD YOUR CODE HERE ***
+  int padding;
   short type;           // File type
   short major;          // Major device number (T_DEV only)
   short minor;          // Minor device number (T_DEV only)

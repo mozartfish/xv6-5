@@ -9,6 +9,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+typedef char bool;
 
 // bio.c
 void            binit(void);
@@ -23,7 +24,7 @@ void            consoleintr(int(*)(void));
 void            panic(char*) __attribute__((noreturn));
 
 // exec.c
-int             exec(char*, char**);
+int             exec(char*, char**, char **envp);
 
 // file.c
 struct file*    filealloc(void);
@@ -46,12 +47,15 @@ void            iput(struct inode*);
 void            iunlock(struct inode*);
 void            iunlockput(struct inode*);
 void            iupdate(struct inode*);
+bool            imodeok(struct inode*, struct proc *p, ushort mode);
 int             namecmp(const char*, const char*);
-struct inode*   namei(char*);
-struct inode*   nameiparent(char*, char*);
+struct inode*   namei(char*, struct proc*);
+struct inode*   nameiparent(char*, char*, struct proc*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
+int             ichown(struct inode *, int, struct proc *);
+int             ichmod(struct inode *, ushort, struct proc *);
 
 // ide.c
 void            ideinit(void);
@@ -188,3 +192,5 @@ void            clearpteu(pde_t *pgdir, char *uva);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+#define true 1
+#define false 0

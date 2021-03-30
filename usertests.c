@@ -294,7 +294,7 @@ void
 exectest(void)
 {
   printf(stdout, "exec test\n");
-  if(exec("echo", echoargv) < 0){
+  if(execv("echo", echoargv) < 0){
     printf(stdout, "exec echo failed\n");
     exit();
   }
@@ -1623,7 +1623,7 @@ bigargtest(void)
       args[i] = "bigargs test: failed\n                                                                                                                                                                                                       ";
     args[MAXARG-1] = 0;
     printf(stdout, "bigarg test\n");
-    exec("echo", args);
+    execv("echo", args);
     printf(stdout, "bigarg test ok\n");
     fd = open("bigarg-ok", O_CREATE);
     close(fd);

@@ -6,13 +6,14 @@
 #include "defs.h"
 #include "x86.h"
 #include "elf.h"
+#include "fs.h"
 
 int
-exec(char *path, char **argv)
+exec(char *path, char **argv, char **envp)
 {
   char *s, *last;
   int i, off;
-  uint argc, sz, sp, ustack[3+MAXARG+1];
+  uint argc, envc, sz, sp, ustack[4+2*(MAXARG+1)];
   struct elfhdr elf;
   struct inode *ip;
   struct proghdr ph;
@@ -21,9 +22,8 @@ exec(char *path, char **argv)
 
   begin_op();
 
-  if((ip = namei(path)) == 0){
+  if((ip = namei(path, curproc)) == 0){
     end_op();
-    cprintf("exec: fail\n");
     return -1;
   }
   ilock(ip);
@@ -31,6 +31,8 @@ exec(char *path, char **argv)
 
   // Check ELF header
   if(readi(ip, (char*)&elf, 0, sizeof(elf)) != sizeof(elf))
+    goto bad;
+  if(!imodeok(ip, curproc, S_IXOTH))
     goto bad;
   if(elf.magic != ELF_MAGIC)
     goto bad;
@@ -75,16 +77,28 @@ exec(char *path, char **argv)
     sp = (sp - (strlen(argv[argc]) + 1)) & ~3;
     if(copyout(pgdir, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
       goto bad;
-    ustack[3+argc] = sp;
+    ustack[4+argc] = sp;
   }
-  ustack[3+argc] = 0;
+  ustack[4+argc] = 0;
 
+  // Push environment strings
+  for(envc = 0; envp[envc]; ++envc){
+    if(envc >= MAXARG)
+      goto bad;
+    sp = (sp - (strlen(envp[envc]) + 1)) & ~3;
+    if(copyout(pgdir, sp, envp[envc], strlen(envp[envc]) + 1) < 0)
+      goto bad;
+    ustack[4+argc+envc] = sp;
+  }
+  ustack[4+argc+envc] = 0;
+
+  sp -= (4+argc+1+envc+1) * 4;
   ustack[0] = 0xffffffff;  // fake return PC
   ustack[1] = argc;
-  ustack[2] = sp - (argc+1)*4;  // argv pointer
+  ustack[2] = sp + 4*4;      // argv pointer
+  ustack[3] = sp+(4+argc)*4; // envp pointer
 
-  sp -= (3+argc+1) * 4;
-  if(copyout(pgdir, sp, ustack, (3+argc+1)*4) < 0)
+  if(copyout(pgdir, sp, ustack, (4+argc+1+envc+1)*4) < 0)
     goto bad;
 
   // Save program name for debugging.

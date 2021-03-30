@@ -143,10 +143,10 @@ tags: $(OBJS) entryother.S _init
 vectors.S: vectors.pl
 	./vectors.pl > vectors.S
 
-ULIB = ulib.o usys.o printf.o umalloc.o
+ULIB = upasswd.o uenv.o ulib.o usys.o printf.o umalloc.o
 
 _%: %.o $(ULIB)
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $^
+	$(LD) $(LDFLAGS) -N -e __start -Ttext 0 -o $@ $^
 	$(OBJDUMP) -S $@ > $*.asm
 	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $*.sym
 
@@ -177,10 +177,16 @@ UPROGS=\
 	_mkdir\
 	_rm\
 	_sh\
+	_printenv\
+	_env\
 	_stressfs\
-	_usertests\
 	_wc\
 	_zombie\
+	_su\
+	_chmod\
+	_chown\
+	_whoami\
+	#_usertests\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

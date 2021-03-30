@@ -4,6 +4,36 @@
 #include "user.h"
 #include "x86.h"
 
+char **environ = 0;
+
+int
+execv(char *prog, char **argv)
+{
+  return execve(prog, argv, environ);
+}
+
+char *
+strtok(char *name, char *delim)
+{
+  static char *nexttok;
+  char *tok;
+  if (name) {
+    // reset
+    nexttok=name;
+  }
+  // spn through delims
+  for(; *nexttok && strchr(delim, *nexttok) ; ++nexttok);
+  // are we at the end of the string?
+  if (!*nexttok) {
+    return 0;
+  }
+  // ok now save position and find next token
+  tok=nexttok;
+  for(; *nexttok && !strchr(delim, *nexttok) ; ++nexttok);
+  *nexttok='\0';
+  return tok;
+}
+
 char*
 strcpy(char *s, const char *t)
 {
@@ -68,20 +98,6 @@ gets(char *buf, int max)
 }
 
 int
-stat(const char *n, struct stat *st)
-{
-  int fd;
-  int r;
-
-  fd = open(n, O_RDONLY);
-  if(fd < 0)
-    return -1;
-  r = fstat(fd, st);
-  close(fd);
-  return r;
-}
-
-int
 atoi(const char *s)
 {
   int n;
@@ -103,4 +119,12 @@ memmove(void *vdst, const void *vsrc, int n)
   while(n-- > 0)
     *dst++ = *src++;
   return vdst;
+}
+
+extern int main(int, char **);
+
+void __start(int argc, char **argv, char **envp) {
+  environ = (char **)envp;
+  //printf(1, "start called, environ: %s\n", envp[0]);
+  main(argc, argv);
 }

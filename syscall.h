@@ -5,7 +5,7 @@
 #define SYS_pipe    4
 #define SYS_read    5
 #define SYS_kill    6
-#define SYS_exec    7
+#define SYS_execve  7
 #define SYS_fstat   8
 #define SYS_chdir   9
 #define SYS_dup    10
@@ -20,3 +20,8 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+#define SYS_chown  22
+#define SYS_chmod  23
+#define SYS_getuid 24
+#define SYS_setuid 25
+#define SYS_stat   26

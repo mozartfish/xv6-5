@@ -363,7 +363,6 @@ iunlockput(struct inode *ip)
 }
 
 // Caller must hold ip->lock.
-// Return 1 if uid can exec ip else return 0
 bool
 imodeok(struct inode* ip, struct proc *p, ushort mode)
 {

@@ -106,10 +106,10 @@ sys_setuid(void)
   if(argint(0, &uid) < 0)
     return -1;
 
+  // *** STAGE1e REPLACE THE CODE BELOW ***
+
   if (uid != 0)
     return -1;
-
-  // *** STAGE1e ADD YOUR CODE HERE ***
 
   return 0;
 }

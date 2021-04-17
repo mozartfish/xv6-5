@@ -65,8 +65,6 @@ xint(uint x)
   return y;
 }
 
-enum fobj_tag { FILE_OBJ, DIR_OBJ };
-
 struct fobj {
   char *name;
   union {
@@ -75,7 +73,7 @@ struct fobj {
   } contents;
   ushort perms;
   ushort owner;
-  enum fobj_tag t;
+  uchar t;
 };
 
 struct fobj*
@@ -83,7 +81,7 @@ create_file(char *name, int fd, ushort owner, ushort perms)
 {
   struct fobj *f = calloc(sizeof(struct fobj), 1);
   f->name = name;
-  f->t = FILE_OBJ;
+  f->t = T_FILE;
   f->contents.fd = fd;
   f->perms = perms;
   f->owner = owner;
@@ -95,7 +93,7 @@ create_dir(char *name, struct fobj **children,
 {
   struct fobj *d = calloc(sizeof(struct fobj), 1);
   d->name = name;
-  d->t = DIR_OBJ;
+  d->t = T_DIR;
   d->contents.children = children;
   d->perms = perms;
   d->owner = owner;
@@ -111,9 +109,9 @@ create_fshier(struct fobj *f, uint *parino)
   struct dinode din;
   struct fobj **children;
   int cc;
-  ino = ialloc(T_DIR, f->owner, f->perms);
+  ino = ialloc(f->t, f->owner, f->perms);
   switch (f->t) {
-  case DIR_OBJ:
+  case T_DIR:
     bzero(&de, sizeof(de));
     de.inum = xshort(ino);
     strcpy(de.name, ".");
@@ -136,7 +134,7 @@ create_fshier(struct fobj *f, uint *parino)
     din.size = xint(off);
     winode(ino, &din);
     break;
-  case FILE_OBJ:
+  case T_FILE:
     while((cc = read(f->contents.fd, buf, sizeof(buf))) > 0)
       iappend(ino, buf, cc);
     close(f->contents.fd);

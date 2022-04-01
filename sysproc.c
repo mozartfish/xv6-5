@@ -108,9 +108,18 @@ sys_setuid(void)
     return -1;
 
   // *** STAGE1e REPLACE THE CODE BELOW ***
-
-  if (uid != 0)
+  // if (uid != 0)
+  //   return -1;
+  
+  // Check if the requested uid is >= 10000
+  if (uid > 10000)
     return -1;
+  
+  if (myproc()->uid != 0)
+    return -1;
+   
+  // Set running process uid
+  myproc()->uid = uid;
 
   return 0;
 }

@@ -113,6 +113,7 @@ found:
   p->context->eip = (uint)forkret;
 
   // *** STAGE1b ADD YOUR CODE HERE ***
+  uid = 0;
 
   return p;
 }

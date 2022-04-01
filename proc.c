@@ -113,7 +113,7 @@ found:
   p->context->eip = (uint)forkret;
 
   // *** STAGE1b ADD YOUR CODE HERE ***
-  uid = 0;
+  p->uid = 0;
 
   return p;
 }
@@ -201,7 +201,7 @@ fork(void)
   }
 
   // *** STAGE1c ADD YOUR CODE HERE ***
-
+  np->uid = curproc->uid;
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;

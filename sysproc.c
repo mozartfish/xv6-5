@@ -94,7 +94,8 @@ int
 sys_getuid(void)
 {
   // *** STAGE1d ADD YOUR CODE HERE *** (NOTE: YOU CAN REPLACE THE FOLLOWING LINE)
-  return 0;
+  //return 0;
+  return myproc()->uid;
 }
 
 int

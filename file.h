@@ -18,6 +18,8 @@ struct inode {
   int valid;          // inode has been read from disk?
 
   // *** STAGE2c ADD YOUR CODE HERE ***
+  ushort uid;
+  ushort perms;
   short type;         // copy of disk inode
   short major;
   short minor;

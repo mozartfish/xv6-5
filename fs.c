@@ -301,6 +301,8 @@ ilock(struct inode *ip)
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
     dip = (struct dinode*)bp->data + ip->inum%IPB;
     // *** STAGE2d ADD YOUR CODE HERE ***
+    ip->uid = dip->uid;
+    ip->perms = dipdip->perms;
     ip->type = dip->type;
     ip->major = dip->major;
     ip->minor = dip->minor;

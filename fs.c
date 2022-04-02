@@ -232,6 +232,8 @@ iupdate(struct inode *ip)
   dip->nlink = ip->nlink;
   dip->size = ip->size;
   // *** STAGE2f ADD YOUR CODE HERE ***
+  dip->uid = ip->uid;
+  dip->perms = ip->perms;
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
   brelse(bp);

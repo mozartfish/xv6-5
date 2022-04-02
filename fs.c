@@ -472,8 +472,8 @@ void
 stati(struct inode *ip, struct stat *st)
 {
   // *** STAGE2e REPLACE/UPDATE THE TWO LINES BELOW ***
-  st->uid = 0;
-  st->perms = S_IRWX;
+  st->uid = ip->uid;
+  st->perms = ip->perms;
 
   st->dev = ip->dev;
   st->ino = ip->inum;

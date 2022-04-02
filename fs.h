@@ -37,7 +37,8 @@ struct superblock {
 // On-disk inode structure
 struct dinode {
   // *** STAGE2a REMOVE "padding" FIELD BELOW AND ADD YOUR CODE HERE ***
-  int padding;
+  ushort uid;
+  ushort perms;
   short type;           // File type
   short major;          // Major device number (T_DEV only)
   short minor;          // Minor device number (T_DEV only)

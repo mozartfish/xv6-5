@@ -304,7 +304,7 @@ ilock(struct inode *ip)
     dip = (struct dinode*)bp->data + ip->inum%IPB;
     // *** STAGE2d ADD YOUR CODE HERE ***
     ip->uid = dip->uid;
-    ip->perms = dipdip->perms;
+    ip->perms = dip->perms;
     ip->type = dip->type;
     ip->major = dip->major;
     ip->minor = dip->minor;

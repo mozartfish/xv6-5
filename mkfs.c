@@ -322,6 +322,8 @@ ialloc(ushort type, ushort uid, ushort perms)
 
   bzero(&din, sizeof(din));
   // *** STAGE2b ADD YOUR CODE HERE ***
+  din.uid = xshort(uid);
+  din.perms = xshort(perms);
   din.type = xshort(type);
   din.nlink = xshort(1);
   din.size = xint(0);

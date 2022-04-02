@@ -371,6 +371,11 @@ bool
 imodeok(struct inode* ip, struct proc *p, ushort mode)
 {
   // *** STAGE3a REPLACE THE CONTENTS OF THIS FUNCTION
+  // Root Access
+  if (p->uid == 0)
+    return true;
+  
+
   return true;
 }
 

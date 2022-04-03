@@ -433,7 +433,12 @@ int ichown(struct inode *ip, int uid, struct proc *p)
 int ichmod(struct inode *ip, ushort mode, struct proc *p)
 {
   // *** STAGE3c REPLACE THE CONTENTS OF THIS FUNCTION
-  return 0;
+  if (p->uid == 0 || p->uid == ip->uid)
+  {
+    ip->perms = mode;
+    return 0;
+  }
+  return -1;
 }
 
 // PAGEBREAK!

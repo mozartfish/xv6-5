@@ -389,15 +389,15 @@ bool imodeok(struct inode *ip, struct proc *p, ushort mode)
     return true;
 
   // Check subset of permissions
-  if(ip->perms & 0x3 == 0x1)
+  if((ip->perms & mode) == 0x1)
     return true;
   
-  if (ip->perms & 0x3 == 0x2)
+  if ((ip->perms & mode) == 0x2)
     return true;
   
-  if (ip->perms & 0x3 == 0x4)
+  if ((ip->perms & mode) == 0x4)
     return true;
-
+    
   return false;
 }
 

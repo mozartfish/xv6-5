@@ -409,6 +409,24 @@ bool imodeok(struct inode *ip, struct proc *p, ushort mode)
 int ichown(struct inode *ip, int uid, struct proc *p)
 {
   // *** STAGE3b REPLACE THE CONTENTS OF THIS FUNCTION
+  if(uid == -1)
+    ip->uid = p->uid;
+  
+  if(uid == ip->uid)
+    return 0;
+  
+  if(uid != ip->uid)
+  {
+    if(p->uid != 0)
+      return -1;
+    
+    if(p->uid == 0)
+    {
+      ip->uid = uid;
+      return 0;
+    }
+  }
+
   return 0;
 }
 
